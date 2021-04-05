@@ -1,0 +1,27 @@
+# Earthfile
+
+RUN mkdir /app
+WORKDIR /app
+
+build:
+    FROM golang:1.16.3-buster
+    RUN mkdir /app
+    RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.36.0
+    WORKDIR /app
+    COPY main.go .
+    COPY go.mod .
+    COPY go.sum .
+    RUN CGO_ENABLED=0 go build -o main main.go
+    SAVE ARTIFACT main test-main
+
+lint:
+    FROM +build
+    RUN golangci-lint run
+
+prod:
+    FROM alpine:latest
+    RUN mkdir /app
+    WORKDIR /app
+    COPY +build/test-main /app/main
+    ENTRYPOINT [ "/app/main" ]
+    SAVE IMAGE earthly-test/server:earthly
